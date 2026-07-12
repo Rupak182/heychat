@@ -110,6 +110,8 @@ export function Home() {
   const activeThreadIdRef = useRef(activeThreadId);
   activeThreadIdRef.current = activeThreadId;
 
+  const skipNextLoadRef = useRef(false);
+
   const handleNewChat = () => {
     setActiveThreadId("");
   };
@@ -138,6 +140,11 @@ export function Home() {
 
   // Load messages whenever activeThreadId changes
   useEffect(() => {
+    if (skipNextLoadRef.current) {
+      skipNextLoadRef.current = false;
+      return;
+    }
+
     // Immediately clear messages to prevent old thread message flash
     setMessages([]);
 
@@ -195,6 +202,7 @@ export function Home() {
         await insertThread(targetThreadId, threadTitle);
         const freshList = await getThreadsList();
         setThreads(freshList);
+        skipNextLoadRef.current = true;
         setActiveThreadId(targetThreadId);
       }
 
