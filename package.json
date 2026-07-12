@@ -1,5 +1,5 @@
 {
-  "name": "heycast",
+  "name": "heychat",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -12,6 +12,7 @@
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@fontsource-variable/geist": "^5.2.9",
+    "@shadcn/react": "^0.2.1",
     "@tailwindcss/vite": "^4.3.2",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",

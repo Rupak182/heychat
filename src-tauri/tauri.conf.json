@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "heycast",
+  "productName": "heychat",
   "version": "0.1.0",
-  "identifier": "com.rupak.heycast",
+  "identifier": "com.rupak.heychat",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "heycast",
-        "width": 800,
-        "height": 600
+        "title": "HeyChat",
+        "width": 650,
+        "height": 700
       }
     ],
     "security": {

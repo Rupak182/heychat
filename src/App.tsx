@@ -1,7 +1,9 @@
 import { createHashRouter, RouterProvider } from "react-router-dom";
+import "./App.css";
 import { RootLayout } from "./RootLayout";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
+import { ThemeProvider } from "./components/theme-provider";
 
 const router = createHashRouter([
   {
@@ -21,5 +23,9 @@ const router = createHashRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <ThemeProvider defaultTheme="system">
+      <RouterProvider router={router} />
+    </ThemeProvider>
+  );
 }
