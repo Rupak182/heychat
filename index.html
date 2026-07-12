@@ -4,7 +4,26 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri + React + Typescript</title>
+    <title>HeyChat</title>
+    <!-- Apply theme before React loads to prevent theme flash (FOUC) -->
+    <script>
+      (function () {
+        try {
+          const stored = localStorage.getItem("vite-ui-theme");
+          const theme = stored === "light" || stored === "dark"
+            ? stored
+            : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          document.documentElement.classList.add(theme);
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
+    <style>
+      html.dark { background-color: oklch(0.145 0 0); }
+      html.light { background-color: oklch(1 0 0); }
+      html, body { margin: 0; }
+    </style>
   </head>
 
   <body>
