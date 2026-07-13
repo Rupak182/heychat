@@ -4,6 +4,7 @@ import { RootLayout } from "./RootLayout";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
 import { ThemeProvider } from "./components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 const router = createHashRouter([
   {
@@ -26,6 +27,7 @@ export default function App() {
   return (
     <ThemeProvider defaultTheme="system">
       <RouterProvider router={router} />
+      <Toaster />
     </ThemeProvider>
   );
 }

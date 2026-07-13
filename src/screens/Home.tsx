@@ -55,19 +55,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { initDb } from "@/db/client";
 import {
   getThreadsList,
-  getThreadMessages,
   insertThread,
-  insertMessage,
   deleteThreadCascade,
 } from "@/db/queries";
-
-interface MessageType {
-  id: string;
-  threadId: string;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: number;
-}
+import { useAIChat, getMessageText } from "@/hooks/use-ai-chat";
+import { SafeMarkdown } from "@/components/ui/safe-markdown";
+import { UIMessage } from "@ai-sdk/react";
+import { toast } from "sonner";
 
 interface Thread {
   id: string;
@@ -84,33 +78,38 @@ const SUGGESTIONS = [
   "Write a quick TypeScript function to fetch API data",
 ];
 
-function getRandomResponse(prompt: string): string {
-  const p = prompt.toLowerCase();
-  if (p.includes("project update") || p.includes("draft")) {
-    return "Here is a professional draft for your update: 'Hi Team, Thanks for the detailed update. I have reviewed the progress and everything looks solid. Let's make sure we test the dark-mode configuration thoroughly before our deployment tomorrow. Let me know if anyone needs assistance.'";
-  }
-  if (p.includes("flexbox") || p.includes("min-h")) {
-    return "The 'min-h-0' property is critical in Flexbox systems. Flex columns default to 'min-height: auto' (the content height). Setting 'min-h-0' lets the flex child shrink below its content height, allowing overflow-y-auto to trigger a scrollbar.";
-  }
-  return "That's a great question! I'm your AI assistant built inside HeyChat. Ask me anything about programming, layout design, or Tauri settings.";
-}
-
 export function Home() {
   const navigate = useNavigate();
-  const [input, setInput] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string>("");
-  const [messages, setMessages] = useState<MessageType[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
 
-  const activeThreadIdRef = useRef(activeThreadId);
-  activeThreadIdRef.current = activeThreadId;
+  const {
+    messages,
+    input,
+    setInput,
+    isLoading,
+    handleSubmit,
+    append,
+    stop,
+    error,
+    clearError,
+  } = useAIChat({
+    threadId: activeThreadId,
+    onGenerationFinish: async () => {
+      try {
+        const threadsList = await getThreadsList();
+        setThreads(threadsList);
+      } catch (err) {
+        console.error("Failed to load threads:", err);
+      }
+    }
+  });
 
-  const skipNextLoadRef = useRef(false);
+  const pendingPromptRef = useRef<string | null>(null);
 
   const handleNewChat = () => {
     setActiveThreadId("");
@@ -138,36 +137,24 @@ export function Home() {
   }, []);
 
 
-  // Load messages whenever activeThreadId changes
+  // Run pending prompt once the activeThreadId shifts to a newly created thread
   useEffect(() => {
-    if (skipNextLoadRef.current) {
-      skipNextLoadRef.current = false;
-      return;
+    if (activeThreadId && pendingPromptRef.current) {
+      const promptToAppend = pendingPromptRef.current;
+      pendingPromptRef.current = null;
+      append({ role: "user", content: promptToAppend });
     }
-
-    // Immediately clear messages to prevent old thread message flash
-    setMessages([]);
-
-    if (!activeThreadId) return;
-
-    let active = true;
-    async function loadMessages() {
-      try {
-        const threadMsgs = await getThreadMessages(activeThreadId);
-        if (active) {
-          setMessages(threadMsgs);
-        }
-      } catch (err) {
-        console.error("Failed to load messages:", err);
-      }
+  }, [activeThreadId, append]);
+  // Trigger a toast notification when a generation or API configuration error occurs
+  useEffect(() => {
+    if (error) {
+      toast.error(error.message || "An error occurred during generation.", {
+        duration: 2000,
+        onAutoClose: () => clearError(),
+        onDismiss: () => clearError(),
+      });
     }
-    loadMessages();
-
-    return () => {
-      active = false;
-    };
-  }, [activeThreadId]);
-
+  }, [error, clearError]);
   const activeThreadTitle = threads.find((t) => t.id === activeThreadId)?.title || "New Chat";
 
   const handleDeleteThread = async (id: string, e: React.MouseEvent) => {
@@ -186,91 +173,35 @@ export function Home() {
 
   const handleSend = async (textToSend?: string) => {
     const prompt = (textToSend || input).trim();
-    if (!prompt || isGenerating) return;
+    if (!prompt || isLoading) return;
 
-    setInput("");
-    setIsGenerating(true);
-
-    let targetThreadId = activeThreadId;
-
-    try {
-      // 1. If no thread is active, create one directly with a title from the user prompt
-      const isNewChat = !targetThreadId;
-      if (isNewChat) {
-        targetThreadId = crypto.randomUUID();
-        const threadTitle = prompt.length > 25 ? prompt.substring(0, 22) + "..." : prompt;
+    if (!activeThreadId) {
+      // Create new thread asynchronously
+      const targetThreadId = crypto.randomUUID();
+      const threadTitle = prompt.length > 25 ? prompt.substring(0, 22) + "..." : prompt;
+      try {
         await insertThread(targetThreadId, threadTitle);
+      } catch (dbErr) {
+        console.error("Failed to create new thread in database:", dbErr);
+      }
+      
+      try {
         const freshList = await getThreadsList();
         setThreads(freshList);
-        skipNextLoadRef.current = true;
-        setActiveThreadId(targetThreadId);
+      } catch (dbErr) {
+        console.error("Failed to fetch updated threads list:", dbErr);
       }
 
-      // 2. Insert user message in database
-      const userMsgId = crypto.randomUUID();
-      await insertMessage(userMsgId, targetThreadId, "user", prompt);
-
-      // 3. Refresh messages state
-      const freshMsgs = await getThreadMessages(targetThreadId);
-      setMessages(freshMsgs);
-
-      // Add a temporary streaming message immediately
-      if (activeThreadIdRef.current === targetThreadId) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: "streaming-temp",
-            threadId: targetThreadId,
-            role: "assistant",
-            content: "",
-            createdAt: Date.now(),
-          },
-        ]);
+      pendingPromptRef.current = prompt;
+      setInput("");
+      setActiveThreadId(targetThreadId);
+    } else {
+      if (textToSend) {
+        append({ role: "user", content: prompt });
+      } else {
+        const e = { preventDefault: () => {} } as React.FormEvent;
+        handleSubmit(e);
       }
-
-      const responseText = getRandomResponse(prompt);
-      let currentWordIndex = 0;
-      const words = responseText.split(" ");
-
-      const interval = setInterval(() => {
-        if (currentWordIndex < words.length) {
-          // If user switched away, abandon this stream entirely
-          if (activeThreadIdRef.current !== targetThreadId) {
-            clearInterval(interval);
-            setIsGenerating(false);
-            return;
-          }
-          const partialText = words.slice(0, currentWordIndex + 1).join(" ");
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === "streaming-temp" ? { ...msg, content: partialText } : msg
-            )
-          );
-          currentWordIndex++;
-        } else {
-          clearInterval(interval);
-          setIsGenerating(false);
-
-          // Stream finished. Insert actual assistant message in the DB
-          const assistantMsgId = crypto.randomUUID();
-          insertMessage(assistantMsgId, targetThreadId, "assistant", responseText)
-            .then(async () => {
-              if (activeThreadIdRef.current === targetThreadId) {
-                // Reload final messages from database to replace temp streaming state
-                const finalMsgs = await getThreadMessages(targetThreadId);
-                setMessages(finalMsgs);
-              }
-            })
-            .catch((err) => {
-              console.error("Failed to save assistant message:", err);
-              // Remove the temp streaming message to avoid stale UI
-              setMessages((prev) => prev.filter((msg) => msg.id !== "streaming-temp"));
-            });
-        }
-      }, 70);
-    } catch (err) {
-      console.error("Failed to send message:", err);
-      setIsGenerating(false);
     }
   };
 
@@ -331,7 +262,7 @@ export function Home() {
 
   return (
     <TooltipProvider>
-      <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+      <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} className="h-svh overflow-hidden">
         
         {/* Sidebar Component */}
         <Sidebar className="border-r border-border/40">
@@ -419,7 +350,7 @@ export function Home() {
           </div>
 
           {/* Chat viewport */}
-          <div className="flex-1 min-h-0 bg-background">
+          <div className="flex-1 min-h-0 flex flex-col bg-background">
             {!activeThreadId ? (
               // Empty State Welcome Screen
               <div className="h-full flex flex-col justify-center items-center max-w-sm mx-auto text-center space-y-6 select-none p-4">
@@ -449,13 +380,12 @@ export function Home() {
                 </div>
               </div>
             ) : (
-              // Standard Message Scroller
-              <MessageScrollerProvider>
-                <MessageScroller>
-                  <MessageScrollerViewport className="px-4 py-6">
-                    <MessageScrollerContent className="max-w-md mx-auto">
-                      {messages.map((msg, index) => (
-                        <MessageScrollerItem key={index}>
+              <MessageScrollerProvider >
+                <MessageScroller className="h-full">
+                  <MessageScrollerViewport className="px-3 py-6">
+                    <MessageScrollerContent className="w-full">
+                      {messages.map((msg: UIMessage, index: number) => (
+                        <MessageScrollerItem key={msg.id ?? index}>
                           <Message align={msg.role === "user" ? "end" : "start"}>
                             <MessageAvatar className="border border-border/65">
                               {msg.role === "user" ? (
@@ -467,7 +397,9 @@ export function Home() {
                             <MessageContent>
                               <Bubble align={msg.role === "user" ? "end" : "start"} variant={msg.role === "user" ? "default" : "muted"}>
                                 <BubbleContent>
-                                  {msg.content || (
+                                  {getMessageText(msg) ? (
+                                    <SafeMarkdown content={getMessageText(msg)} />
+                                  ) : (
                                     <span className="flex items-center gap-1 py-1">
                                       <span className="size-1 bg-muted-foreground rounded-full animate-bounce delay-100" />
                                       <span className="size-1 bg-muted-foreground rounded-full animate-bounce delay-200" />
@@ -487,25 +419,26 @@ export function Home() {
                 </MessageScroller>
               </MessageScrollerProvider>
             )}
+
           </div>
 
           {/* Input Bar */}
           <div className="p-4 border-t border-border/40 bg-zinc-50/20 dark:bg-zinc-900/20 shrink-0">
-            <div className="max-w-md mx-auto">
-              <InputGroup className="h-10 rounded-xl px-1 bg-background border-border shadow-xs">
+            <div className="w-full flex gap-2">
+              <InputGroup className="h-10 rounded-xl px-1 bg-background border-border shadow-xs flex-1">
                 <InputGroupInput
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder="Type a message..."
-                  disabled={isGenerating}
+                  disabled={isLoading}
                   className="text-xs"
                 />
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton
                     onClick={() => handleSend()}
-                    disabled={!input.trim() || isGenerating}
+                    disabled={!input.trim() || isLoading}
                     variant="ghost"
                     size="icon-sm"
                     title="Send"
@@ -515,6 +448,14 @@ export function Home() {
                   </InputGroupButton>
                 </InputGroupAddon>
               </InputGroup>
+              {isLoading && (
+                <button
+                  onClick={stop}
+                  className="px-3 border border-border rounded-xl bg-background hover:bg-muted text-xs font-semibold cursor-pointer shrink-0"
+                >
+                  Stop
+                </button>
+              )}
             </div>
           </div>
 
