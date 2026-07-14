@@ -2,52 +2,39 @@ import { createGoogle } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { getAIConfig } from "./config";
+import { getAIConfig, getApiKey } from "./config";
 
-export function getModelInstance() {
+export async function getModelInstance() {
   const config = getAIConfig();
+  const apiKey = await getApiKey(config.provider);
 
   switch (config.provider) {
     case "google":
-      if (!config.apiKey) throw new Error("Google Gemini API Key is missing.");
-      const google = createGoogle({ 
-        apiKey: config.apiKey,
-        fetch: tauriFetch
-      });
-      return google(config.modelId);
+      if (!apiKey) throw new Error("Google Gemini API Key is missing.");
+      return createGoogle({ apiKey, fetch: tauriFetch })(config.modelId);
 
     case "openai":
-      if (!config.apiKey) throw new Error("OpenAI API Key is missing.");
-      const openai = createOpenAI({ 
-        apiKey: config.apiKey,
-        fetch: tauriFetch
-      });
-      return openai(config.modelId);
+      if (!apiKey) throw new Error("OpenAI API Key is missing.");
+      return createOpenAI({ apiKey, fetch: tauriFetch })(config.modelId);
 
     case "groq":
-      if (!config.apiKey) throw new Error("Groq API Key is missing.");
-      const groq = createOpenAI({ 
+      if (!apiKey) throw new Error("Groq API Key is missing.");
+      return createOpenAI({
         baseURL: "https://api.groq.com/openai/v1",
-        apiKey: config.apiKey,
-        fetch: tauriFetch
-      });
-      return groq(config.modelId);
+        apiKey,
+        fetch: tauriFetch,
+      })(config.modelId);
 
     case "anthropic":
-      if (!config.apiKey) throw new Error("Anthropic API Key is missing.");
-      const anthropic = createAnthropic({ 
-        apiKey: config.apiKey,
-        fetch: tauriFetch
-      });
-      return anthropic(config.modelId);
+      if (!apiKey) throw new Error("Anthropic API Key is missing.");
+      return createAnthropic({ apiKey, fetch: tauriFetch })(config.modelId);
 
     case "ollama":
-      const customOpenAI = createOpenAI({
+      return createOpenAI({
         baseURL: config.baseUrl || "http://localhost:11434/v1",
         apiKey: "ollama",
-        fetch: tauriFetch
-      });
-      return customOpenAI(config.modelId);
+        fetch: tauriFetch,
+      })(config.modelId);
 
     default:
       return null;

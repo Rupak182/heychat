@@ -50,7 +50,7 @@ export function useAIChat({ threadId, onGenerationFinish }: UseAIChatOptions) {
 
         let model;
         try {
-          model = getModelInstance();
+          model = await getModelInstance();
         } catch (err: any) {
           throw new Error(err.message || "Failed to load AI model. Please check settings.");
         }

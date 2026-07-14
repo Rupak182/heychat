@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Info, Save, Sparkles } from "lucide-react";
-import { getAIConfig, saveAIConfig, PROVIDER_LABELS, PROVIDERS, type AIConfig } from "@/lib/ai/config";
+import { getAIConfig, saveAIConfig, saveApiKey, getApiKey, PROVIDER_LABELS, PROVIDERS, type AIConfig } from "@/lib/ai/config";
 
 const PROVIDER_MODELS: Record<AIConfig["provider"], string[]> = {
   google: ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-2.5-flash-lite"],
@@ -27,22 +27,36 @@ export function Settings() {
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
 
-  // AI Configuration State
-  const [config, setConfig] = useState<AIConfig>(() => getAIConfig());
+  // Non-sensitive config from localStorage
+  const [config, setConfig] = useState(() => getAIConfig());
+  // API key loaded separately from OS keychain
+  const [apiKey, setApiKey] = useState("");
+
+  // Load the API key from the OS keychain whenever the provider changes
+  useEffect(() => {
+    let active = true;
+    setApiKey(""); // Clear immediately to avoid displaying the previous provider's key
+    getApiKey(config.provider).then((key) => {
+      if (active) {
+        setApiKey(key);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [config.provider]);
 
   const handleProviderChange = (newProvider: AIConfig["provider"]) => {
-    const saved = getAIConfig(newProvider);
-    setConfig(saved);
+    setConfig(getAIConfig(newProvider));
   };
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      saveAIConfig({
-        ...config,
-        apiKey: config.apiKey.trim(),
-        baseUrl: config.baseUrl?.trim(),
-      });
+      // Save non-sensitive fields to localStorage
+      saveAIConfig({ ...config, baseUrl: config.baseUrl?.trim() });
+      // Save API key securely to OS keychain
+      await saveApiKey(config.provider, apiKey.trim());
     } catch (err) {
       console.error("Failed to save AI configuration:", err);
     }
@@ -51,7 +65,7 @@ export function Settings() {
       setIsSaving(false);
       navigate("/");
     }, 600);
-  }, [config, navigate]);
+  }, [config, apiKey, navigate]);
 
   return (
     <div className="w-full h-full bg-background overflow-hidden flex flex-col justify-between text-foreground">
@@ -141,8 +155,8 @@ export function Settings() {
                 </div>
                 <Input 
                   type="password" 
-                  value={config.apiKey} 
-                  onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
+                  value={apiKey} 
+                  onChange={(e) => setApiKey(e.target.value)}
                   placeholder="API Key"
                   className="w-48 text-xs bg-card border border-border/80 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                 />

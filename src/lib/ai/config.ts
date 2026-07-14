@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { invoke } from "@tauri-apps/api/core";
 
 export const aiConfigSchema = z.object({
   provider: z.enum(["google", "openai", "groq", "anthropic", "ollama"]),
@@ -27,19 +28,38 @@ export const PROVIDER_LABELS: Record<AIConfig["provider"], string> = {
   ollama: "Ollama",
 };
 
+// ── Secure keyring helpers (async) ──────────────────────────────────────────
+
+/** Saves the API key for a provider into the OS keychain. */
+export async function saveApiKey(provider: AIConfig["provider"], apiKey: string): Promise<void> {
+  await invoke<void>("save_api_key", { provider, apiKey });
+}
+
+/** Retrieves the API key for a provider from the OS keychain. Returns "" if not set. */
+export async function getApiKey(provider: AIConfig["provider"]): Promise<string> {
+  try {
+    return await invoke<string>("get_api_key", { provider });
+  } catch {
+    return "";
+  }
+}
+
+// ── Non-sensitive config (localStorage) ─────────────────────────────────────
+
 /**
- * Returns the saved AI config.
+ * Returns the saved non-sensitive AI config (provider, modelId, baseUrl).
  * Pass an explicit `provider` to load the config for a specific provider
  * (e.g. when switching providers in Settings before saving).
+ * NOTE: apiKey is always "" here — load it separately with getApiKey().
  */
-export function getAIConfig(provider?: AIConfig["provider"]): AIConfig {
+export function getAIConfig(provider?: AIConfig["provider"]): Omit<AIConfig, "apiKey"> & { apiKey: "" } {
   const activeProvider = (
     provider ?? localStorage.getItem("ai_provider") ?? "google"
   ) as AIConfig["provider"];
 
   const rawConfig = {
     provider: activeProvider,
-    apiKey: localStorage.getItem(`ai_api_key_${activeProvider}`) ?? "",
+    apiKey: "",
     modelId:
       localStorage.getItem(`ai_model_id_${activeProvider}`) ??
       PROVIDER_DEFAULT_MODELS[activeProvider],
@@ -56,15 +76,13 @@ export function getAIConfig(provider?: AIConfig["provider"]): AIConfig {
     };
   }
 
-  return parsed.data;
+  return { ...parsed.data, apiKey: "" };
 }
 
-/** Saves the config, scoping apiKey, modelId and baseUrl to the given provider. */
-export function saveAIConfig(config: Partial<AIConfig> & { provider: AIConfig["provider"] }) {
+/** Saves non-sensitive config (provider, modelId, baseUrl) to localStorage.
+ *  Call saveApiKey() separately to persist the API key securely. */
+export function saveAIConfig(config: Partial<Omit<AIConfig, "apiKey">> & { provider: AIConfig["provider"] }) {
   localStorage.setItem("ai_provider", config.provider);
-  if (config.apiKey !== undefined) {
-    localStorage.setItem(`ai_api_key_${config.provider}`, config.apiKey);
-  }
   if (config.modelId) {
     localStorage.setItem(`ai_model_id_${config.provider}`, config.modelId);
   }
