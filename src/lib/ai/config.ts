@@ -2,9 +2,9 @@ import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
 
 export const aiConfigSchema = z.object({
-  provider: z.enum(["google", "openai", "groq", "anthropic", "ollama"]),
+  provider: z.enum(["openai-compatible", "google", "openai", "groq", "anthropic", "ollama"]),
   apiKey: z.string().default(""),
-  modelId: z.string().min(1, "Model ID is required"),
+  modelId: z.string().default(""),
   baseUrl: z.string().url().optional(),
 });
 
@@ -14,10 +14,11 @@ export const PROVIDERS = aiConfigSchema.shape.provider.options;
 
 const PROVIDER_DEFAULT_MODELS: Record<AIConfig["provider"], string> = {
   google: "gemini-2.5-flash",
-  openai: "gpt-4o",
+  openai: "gpt-5.5",
   groq: "qwen/qwen3-32b",
-  anthropic: "claude-sonnet-4-5",
+  anthropic: "claude-opus-4-8",
   ollama: "llama3",
+  "openai-compatible": "",
 };
 
 export const PROVIDER_LABELS: Record<AIConfig["provider"], string> = {
@@ -26,6 +27,7 @@ export const PROVIDER_LABELS: Record<AIConfig["provider"], string> = {
   groq: "Groq",
   anthropic: "Anthropic",
   ollama: "Ollama",
+  "openai-compatible": "OpenAI Compatible",
 };
 
 // ── Secure keyring helpers (async) ──────────────────────────────────────────

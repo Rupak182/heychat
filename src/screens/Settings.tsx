@@ -10,15 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Info, Save, Sparkles } from "lucide-react";
+import { ArrowLeft, Save, Sparkles, Info } from "lucide-react";
 import { getAIConfig, saveAIConfig, saveApiKey, getApiKey, PROVIDER_LABELS, PROVIDERS, type AIConfig } from "@/lib/ai/config";
 
 const PROVIDER_MODELS: Record<AIConfig["provider"], string[]> = {
+  "openai-compatible": [],
   google: ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-2.5-flash-lite"],
   groq: ["openai/gpt-oss-120b", "qwen/qwen3-32b"],
   openai: ["gpt-5.5", "gpt-5.4"],
   anthropic: ["claude-sonnet-4-6", "claude-opus-4-8"],
-  ollama: ["llama3", "mistral"],
+  ollama: [],
 };
 
 
@@ -54,7 +55,7 @@ export function Settings() {
     setIsSaving(true);
     try {
       // Save non-sensitive fields to localStorage
-      saveAIConfig({ ...config, baseUrl: config.baseUrl?.trim() });
+      saveAIConfig({ ...config, baseUrl: config.baseUrl?.trim() || undefined });
       // Save API key securely to OS keychain
       await saveApiKey(config.provider, apiKey.trim());
     } catch (err) {
@@ -121,30 +122,46 @@ export function Settings() {
               </Select>
             </div>
 
-            {/* Model ID select list */}
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-xs font-semibold block">Model ID</label>
-                <span className="text-[10px] text-muted-foreground">Select the target LLM model</span>
+            {/* Model ID selection (Dropdown for presets, text Input for custom/ollama) */}
+            {config.provider === "ollama" || config.provider === "openai-compatible" ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-semibold block">Model ID</label>
+                  <span className="text-[10px] text-muted-foreground">The model name identifier</span>
+                </div>
+                <Input 
+                  type="text" 
+                  value={config.modelId} 
+                  onChange={(e) => setConfig({ ...config, modelId: e.target.value })}
+                  placeholder={config.provider === "ollama" ? "llama3" : "e.g. deepseek-chat"}
+                  className="w-48 text-xs bg-card border border-border/80 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/40"
+                />
               </div>
-              <Select 
-                value={config.modelId} 
-                onValueChange={(val) => setConfig({ ...config, modelId: val || "" })}
-              >
-                <SelectTrigger className="w-48 bg-card border border-border/80 rounded-lg text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {(PROVIDER_MODELS[config.provider] || []).map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-semibold block">Model ID</label>
+                  <span className="text-[10px] text-muted-foreground">Select the target LLM model</span>
+                </div>
+                <Select 
+                  value={config.modelId} 
+                  onValueChange={(val) => setConfig({ ...config, modelId: val || "" })}
+                >
+                  <SelectTrigger className="w-48 bg-card border border-border/80 rounded-lg text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {(PROVIDER_MODELS[config.provider] || []).map((model) => (
+                        <SelectItem key={model} value={model}>
+                          {model}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* API Key (Optional for Ollama) */}
             {config.provider !== "ollama" && (
@@ -163,18 +180,18 @@ export function Settings() {
               </div>
             )}
 
-            {/* Base URL (Only for Ollama) */}
-            {config.provider === "ollama" && (
+            {/* Base URL (For Ollama and Custom OpenAI) */}
+            {(config.provider === "ollama" || config.provider === "openai-compatible") && (
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-xs font-semibold block">Base URL</label>
-                  <span className="text-[10px] text-muted-foreground">Ollama API endpoint address</span>
+                  <span className="text-[10px] text-muted-foreground">Custom API endpoint address</span>
                 </div>
                 <Input 
                   type="text" 
                   value={config.baseUrl || ""} 
                   onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
-                  placeholder="http://localhost:11434/v1"
+                  placeholder={config.provider === "ollama" ? "http://localhost:11434/v1" : "https://api.deepseek.com/v1"}
                   className="w-48 text-xs bg-card border border-border/80 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                 />
               </div>
@@ -223,11 +240,6 @@ export function Settings() {
             <Save className={`size-3 ${isSaving ? "animate-spin" : ""}`} />
             <span>{isSaving ? "Saving..." : "Save Settings"}</span>
           </Button>
-          <span className="text-border">|</span>
-          <div className="flex items-center gap-0.5 text-muted-foreground/80">
-            <span>Apply</span>
-            <span className="font-mono bg-muted border border-border/80 px-1 py-0.2 rounded text-[10px] shadow-sm ml-1">↵</span>
-          </div>
         </div>
       </div>
 

@@ -36,6 +36,15 @@ export async function getModelInstance() {
         fetch: tauriFetch,
       })(config.modelId);
 
+    case "openai-compatible":
+      if (!apiKey) throw new Error("API Key is missing for custom endpoint.");
+      if (!config.baseUrl) throw new Error("Base URL is missing for custom endpoint.");
+      return createOpenAI({
+        baseURL: config.baseUrl,
+        apiKey,
+        fetch: tauriFetch,
+      })(config.modelId);
+
     default:
       return null;
   }
