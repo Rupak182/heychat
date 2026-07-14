@@ -9,12 +9,22 @@ export const aiConfigSchema = z.object({
 
 export type AIConfig = z.infer<typeof aiConfigSchema>;
 
+export const PROVIDERS = aiConfigSchema.shape.provider.options;
+
 const PROVIDER_DEFAULT_MODELS: Record<AIConfig["provider"], string> = {
   google: "gemini-2.5-flash",
   openai: "gpt-4o",
   groq: "qwen/qwen3-32b",
   anthropic: "claude-sonnet-4-5",
   ollama: "llama3",
+};
+
+export const PROVIDER_LABELS: Record<AIConfig["provider"], string> = {
+  google: "Google Gemini",
+  openai: "OpenAI",
+  groq: "Groq",
+  anthropic: "Anthropic",
+  ollama: "Ollama",
 };
 
 /**

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Sliders, Shield, Info, Save, Sparkles } from "lucide-react";
-import { getAIConfig, saveAIConfig, type AIConfig } from "@/lib/ai/config";
+import { getAIConfig, saveAIConfig, PROVIDER_LABELS, PROVIDERS, type AIConfig } from "@/lib/ai/config";
 
 const PROVIDER_MODELS: Record<AIConfig["provider"], string[]> = {
   google: ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-2.5-flash-lite"],
@@ -20,14 +20,6 @@ const PROVIDER_MODELS: Record<AIConfig["provider"], string[]> = {
   anthropic: ["claude-sonnet-4-6", "claude-opus-4-8"],
   ollama: ["llama3", "mistral"],
 };
-
-const PROVIDER_OPTIONS = [
-  { label: "Google Gemini", value: "google" },
-  { label: "OpenAI", value: "openai" },
-  { label: "Groq", value: "groq" },
-  { label: "Anthropic", value: "anthropic" },
-  { label: "Ollama (Local)", value: "ollama" },
-];
 
 const RESOLUTION_OPTIONS = [
   { label: "1080p (60fps)", value: "1080p" },
@@ -42,38 +34,20 @@ export function Settings() {
   const [isSaving, setIsSaving] = useState(false);
 
   // AI Configuration State
-  const [provider, setProvider] = useState<AIConfig["provider"]>("google");
-  const [modelId, setModelId] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
-
-  const modelItems = (PROVIDER_MODELS[provider] || []).map((model) => ({ label: model, value: model }));
-
-  // Load existing configuration on mount
-  useEffect(() => {
-    const config = getAIConfig();
-    setProvider(config.provider);
-    setModelId(config.modelId);
-    setApiKey(config.apiKey || "");
-    setBaseUrl(config.baseUrl || "");
-  }, []);
+  const [config, setConfig] = useState<AIConfig>(() => getAIConfig());
 
   const handleProviderChange = (newProvider: AIConfig["provider"]) => {
     const saved = getAIConfig(newProvider);
-    setProvider(newProvider);
-    setModelId(saved.modelId);
-    setApiKey(saved.apiKey);
-    setBaseUrl(saved.baseUrl ?? "");
+    setConfig(saved);
   };
 
   const handleSave = useCallback(() => {
     setIsSaving(true);
     try {
       saveAIConfig({
-        provider,
-        modelId,
-        apiKey: apiKey.trim(),
-        baseUrl: baseUrl.trim(),
+        ...config,
+        apiKey: config.apiKey.trim(),
+        baseUrl: config.baseUrl?.trim(),
       });
     } catch (err) {
       console.error("Failed to save AI configuration:", err);
@@ -83,7 +57,7 @@ export function Settings() {
       setIsSaving(false);
       navigate("/");
     }, 600);
-  }, [provider, modelId, apiKey, baseUrl, navigate]);
+  }, [config, navigate]);
 
   return (
     <div className="w-full h-full bg-background overflow-hidden flex flex-col justify-between text-foreground">
@@ -121,8 +95,7 @@ export function Settings() {
                 <span className="text-[10px] text-muted-foreground">Select AI provider or LLM service</span>
               </div>
               <Select 
-                items={PROVIDER_OPTIONS}
-                value={provider} 
+                value={config.provider} 
                 onValueChange={(val) => handleProviderChange(val as AIConfig["provider"])}
               >
                 <SelectTrigger className="w-48 bg-card border border-border/80 rounded-lg text-xs">
@@ -130,9 +103,9 @@ export function Settings() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {PROVIDER_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
+                    {PROVIDERS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {PROVIDER_LABELS[p]}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -147,18 +120,17 @@ export function Settings() {
                 <span className="text-[10px] text-muted-foreground">Select the target LLM model</span>
               </div>
               <Select 
-                items={modelItems}
-                value={modelId} 
-                onValueChange={(val) => setModelId(val as string)}
+                value={config.modelId} 
+                onValueChange={(val) => setConfig({ ...config, modelId: val || "" })}
               >
                 <SelectTrigger className="w-48 bg-card border border-border/80 rounded-lg text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {modelItems.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
+                    {(PROVIDER_MODELS[config.provider] || []).map((model) => (
+                      <SelectItem key={model} value={model}>
+                        {model}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -167,7 +139,7 @@ export function Settings() {
             </div>
 
             {/* API Key (Optional for Ollama) */}
-            {provider !== "ollama" && (
+            {config.provider !== "ollama" && (
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-xs font-semibold block">API Key</label>
@@ -175,8 +147,8 @@ export function Settings() {
                 </div>
                 <Input 
                   type="password" 
-                  value={apiKey} 
-                  onChange={(e) => setApiKey(e.target.value)}
+                  value={config.apiKey} 
+                  onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
                   placeholder="API Key"
                   className="w-48 text-xs bg-card border border-border/80 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                 />
@@ -184,7 +156,7 @@ export function Settings() {
             )}
 
             {/* Base URL (Only for Ollama) */}
-            {provider === "ollama" && (
+            {config.provider === "ollama" && (
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-xs font-semibold block">Base URL</label>
@@ -192,8 +164,8 @@ export function Settings() {
                 </div>
                 <Input 
                   type="text" 
-                  value={baseUrl} 
-                  onChange={(e) => setBaseUrl(e.target.value)}
+                  value={config.baseUrl || ""} 
+                  onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
                   placeholder="http://localhost:11434/v1"
                   className="w-48 text-xs bg-card border border-border/80 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                 />
@@ -215,7 +187,6 @@ export function Settings() {
                 <span className="text-[10px] text-muted-foreground">Adjust casting video stream quality</span>
               </div>
               <Select 
-                items={RESOLUTION_OPTIONS}
                 value={resolution} 
                 onValueChange={(val) => setResolution(val as string)}
               >

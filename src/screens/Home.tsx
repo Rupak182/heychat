@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Send, 
@@ -62,6 +62,7 @@ import { useAIChat, getMessageText } from "@/hooks/use-ai-chat";
 import { SafeMarkdown } from "@/components/ui/safe-markdown";
 import { UIMessage } from "@ai-sdk/react";
 import { toast } from "sonner";
+import { getAIConfig, PROVIDER_LABELS } from "@/lib/ai/config";
 
 interface Thread {
   id: string;
@@ -82,6 +83,12 @@ export function Home() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const modelName = useMemo(() => {
+    const config = getAIConfig();
+    const providerLabel = PROVIDER_LABELS[config.provider] || config.provider;
+    return `${providerLabel} (${config.modelId})`;
+  }, []);
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string>("");
@@ -463,7 +470,7 @@ export function Home() {
           <div className="px-4 py-2 bg-muted/20 border-t border-border/20 flex items-center justify-between text-[10px] text-muted-foreground shrink-0 select-none">
             <div>
               <span>Model: </span>
-              <span className="font-semibold text-foreground/80">HeyChat Local</span>
+              <span className="font-semibold text-foreground/80">{modelName}</span>
             </div>
             <div>
               <span>Press Enter to Send</span>
