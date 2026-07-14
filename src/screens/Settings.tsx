@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Sliders, Shield, Info, Save, Sparkles } from "lucide-react";
+import { ArrowLeft, Info, Save, Sparkles } from "lucide-react";
 import { getAIConfig, saveAIConfig, PROVIDER_LABELS, PROVIDERS, type AIConfig } from "@/lib/ai/config";
 
 const PROVIDER_MODELS: Record<AIConfig["provider"], string[]> = {
@@ -21,16 +21,10 @@ const PROVIDER_MODELS: Record<AIConfig["provider"], string[]> = {
   ollama: ["llama3", "mistral"],
 };
 
-const RESOLUTION_OPTIONS = [
-  { label: "1080p (60fps)", value: "1080p" },
-  { label: "720p (60fps)", value: "720p" },
-  { label: "480p (30fps)", value: "480p" },
-];
+
 
 export function Settings() {
   const navigate = useNavigate();
-  const [resolution, setResolution] = useState("1080p");
-  const [port, setPort] = useState(1420);
   const [isSaving, setIsSaving] = useState(false);
 
   // AI Configuration State
@@ -175,58 +169,7 @@ export function Settings() {
           </div>
         </div>
 
-        {/* Quality Section */}
-        <div className="space-y-3">
-          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <Sliders className="size-3.5" /> Quality & Streaming
-          </h2>
-          <div className="grid gap-3 rounded-xl border border-border/45 bg-muted/10 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-xs font-semibold block">Default Resolution</label>
-                <span className="text-[10px] text-muted-foreground">Adjust casting video stream quality</span>
-              </div>
-              <Select 
-                value={resolution} 
-                onValueChange={(val) => setResolution(val as string)}
-              >
-                <SelectTrigger className="w-48 bg-card border border-border/80 rounded-lg text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {RESOLUTION_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
 
-        {/* Network Section */}
-        <div className="space-y-3">
-          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <Shield className="size-3.5" /> Security & Connection
-          </h2>
-          <div className="grid gap-3 rounded-xl border border-border/45 bg-muted/10 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-xs font-semibold block">Discovery Port</label>
-                <span className="text-[10px] text-muted-foreground">Local scanning network port</span>
-              </div>
-              <input 
-                type="number" 
-                value={port} 
-                onChange={(e) => setPort(Number(e.target.value))}
-                className="w-20 bg-card border border-border/80 rounded-lg px-2 py-1 text-xs text-right outline-none focus:ring-1 focus:ring-primary/40 text-foreground"
-              />
-            </div>
-          </div>
-        </div>
 
         {/* About Section */}
         <div className="space-y-3">
@@ -237,10 +180,6 @@ export function Settings() {
             <div className="flex justify-between">
               <span>App Version</span>
               <span className="font-semibold text-foreground">v0.1.0</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tauri Version</span>
-              <span className="font-semibold text-foreground">v2.0.0</span>
             </div>
           </div>
         </div>
