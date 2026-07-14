@@ -1,5 +1,5 @@
 import { useChat, type UIMessage } from "@ai-sdk/react";
-import { streamText, DefaultChatTransport, toUIMessageStream, createUIMessageStreamResponse, convertToModelMessages, validateUIMessages } from "ai";
+import { streamText, DefaultChatTransport, toUIMessageStream, createUIMessageStreamResponse, convertToModelMessages, validateUIMessages, pruneMessages, wrapLanguageModel, extractReasoningMiddleware } from "ai";
 import { getModelInstance } from "@/lib/ai/provider";
 import { insertMessage, getThreadMessages } from "@/db/queries";
 import { useEffect, useState, useCallback } from "react";
@@ -48,19 +48,37 @@ export function useAIChat({ threadId, onGenerationFinish }: UseAIChatOptions) {
           messages: slicedMessages,
         });
 
-        let model;
+        let rawModel;
         try {
-          model = await getModelInstance();
+          rawModel = await getModelInstance();
         } catch (err: any) {
           throw new Error(err.message || "Failed to load AI model. Please check settings.");
         }
 
-        if (!model) {
+        if (!rawModel) {
           throw new Error("No API key configured. Please check your settings.");
         }
 
+        const model = wrapLanguageModel({
+          model: rawModel,
+          middleware: [
+            extractReasoningMiddleware({ tagName: "think", separator: "\n" }),
+            extractReasoningMiddleware({ tagName: "reasoning", separator: "\n" }),
+          ],
+        });
+
+
         // Convert UIMessage[] → ModelMessage[] (the format streamText expects)
-        const modelMessages = await convertToModelMessages(validatedMessages);
+        const rawModelMessages = await convertToModelMessages(validatedMessages);
+
+        // Prune the messages using the SDK utility to strip out empty messages and previous assistant reasoning
+        const prunedMessages = pruneMessages({
+          messages: rawModelMessages,
+          emptyMessages: "remove",
+          reasoning: "before-last-message",
+        });
+
+        const modelMessages = prunedMessages;
 
         // Generate client-side text stream utilizing the Tauri HTTP plugin
         let result;

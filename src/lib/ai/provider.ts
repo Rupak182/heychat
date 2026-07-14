@@ -1,5 +1,6 @@
 import { createGoogle } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { getAIConfig, getApiKey } from "./config";
@@ -19,7 +20,8 @@ export async function getModelInstance() {
 
     case "groq":
       if (!apiKey) throw new Error("Groq API Key is missing.");
-      return createOpenAI({
+      return createOpenAICompatible({
+        name: "groq",
         baseURL: "https://api.groq.com/openai/v1",
         apiKey,
         fetch: tauriFetch,
@@ -30,16 +32,18 @@ export async function getModelInstance() {
       return createAnthropic({ apiKey, fetch: tauriFetch })(config.modelId);
 
     case "ollama":
-      return createOpenAI({
+      return createOpenAICompatible({
+        name: "ollama",
         baseURL: config.baseUrl || "http://localhost:11434/v1",
-        apiKey: "ollama",
+        apiKey: apiKey || "ollama",
         fetch: tauriFetch,
       })(config.modelId);
 
     case "openai-compatible":
       if (!apiKey) throw new Error("API Key is missing for custom endpoint.");
       if (!config.baseUrl) throw new Error("Base URL is missing for custom endpoint.");
-      return createOpenAI({
+      return createOpenAICompatible({
+        name: "openai-compatible",
         baseURL: config.baseUrl,
         apiKey,
         fetch: tauriFetch,
