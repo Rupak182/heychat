@@ -2,11 +2,17 @@
 
 HeyChat is a lightweight, local-first AI chat client built with **Tauri v2**, **React**, and **TypeScript**. It offers secure credential storage, local SQLite history persistence, and robust integrations with multiple cloud and local AI models.
 
+
+
+https://github.com/user-attachments/assets/da5e01b5-0b3c-40c9-9563-0155453c75c8
+
+
+
 ---
 
 ## ✨ Features
 
-- **Multi-Engine AI Chat**: Seamless conversation experience with real-time response streaming. Toggle between Google Gemini, OpenAI, Groq, Anthropic, Ollama (local), or any custom OpenAI-compatible endpoint.
+- **Multi-Engine AI Chat**: Have low latency conversation experience with real-time response streaming. Toggle between Google Gemini, OpenAI, Groq, Anthropic, Ollama (local), or any custom OpenAI-compatible endpoint.
 - **Secure Keyring Protection**: Your API keys are saved directly into your system's native keychain rather than in plain text configuration files.
 - **Local History & Thread Management**: Keep your conversations organized. Create, switch between, and delete chat threads locally. All data is saved on your device in an SQLite database.
 - **Advanced Model Settings**: Easily customize Model IDs and Base URLs for Ollama or custom API gateways to use any open-source or proprietary models.
