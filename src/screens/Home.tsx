@@ -74,9 +74,9 @@ interface Thread {
 
 // Static mock data — defined outside the component so they don't re-create on every render
 const SUGGESTIONS = [
-  "Draft a professional reply to a project update",
-  "Explain CSS Flexbox min-h-0 in simple terms",
-  "Write a quick TypeScript function to fetch API data",
+  "Draft a polite and professional reply to an email",
+  "Explain how CSS Flexbox works in simple terms",
+  "Brainstorm a few creative weekend activity ideas",
 ];
 
 export function Home() {
@@ -359,31 +359,38 @@ export function Home() {
           {/* Chat viewport */}
           <div className="flex-1 min-h-0 flex flex-col bg-background">
             {!activeThreadId ? (
-              // Empty State Welcome Screen
-              <div className="h-full flex flex-col justify-center items-center max-w-sm mx-auto text-center space-y-6 select-none p-4">
-                <div className="p-4 bg-muted/40 border border-border/60 rounded-full shadow-inner">
-                  <Sparkles className="size-8 text-primary animate-pulse" />
-                </div>
-                
-                <div className="space-y-1.5">
-                  <h1 className="text-lg font-bold tracking-tight text-foreground">
-                    How can I help you today?
-                  </h1>
-                  <p className="text-xs text-muted-foreground">
-                    Ask a programming question, brainstorm app ideas, or try one of the suggestions below.
-                  </p>
-                </div>
+              // Empty State Welcome Screen with Glassmorphism and ambient glows
+              <div className="relative h-full flex flex-col justify-center items-center select-none p-4 overflow-hidden">
+                {/* Ambient Glowing Blurs (to show off the glass blur behind) */}
+                <div className="absolute top-1/4 left-1/4 w-48 h-48 bg-primary/10 dark:bg-primary/20 rounded-full blur-[80px] pointer-events-none" />
+                <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-[80px] pointer-events-none" />
 
-                <div className="w-full space-y-2 py-2">
-                  {SUGGESTIONS.map((text, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleSend(text)}
-                      className="w-full text-left px-3 py-2 text-xs border border-border/45 hover:border-primary/45 rounded-xl bg-card hover:bg-primary/5 transition-all text-muted-foreground hover:text-foreground line-clamp-1 cursor-pointer shadow-sm"
-                    >
-                      “ {text} ”
-                    </button>
-                  ))}
+                {/* Glassmorphic Card Container */}
+                <div className="relative w-full max-w-sm p-6 bg-white/20 dark:bg-zinc-950/20 backdrop-blur-lg border border-white/30 dark:border-zinc-800/40 rounded-2xl shadow-xl space-y-6 flex flex-col items-center">
+                  <div className="p-3.5 bg-white/30 dark:bg-zinc-900/40 border border-white/40 dark:border-zinc-800/50 rounded-full shadow-inner">
+                    <Sparkles className="size-6 text-primary animate-pulse" />
+                  </div>
+                  
+                  <div className="space-y-1.5 text-center">
+                    <h1 className="text-base font-bold tracking-tight text-foreground">
+                      How can I help you today?
+                    </h1>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Ask a question, brainstorm ideas, or try one of the suggestions below.
+                    </p>
+                  </div>
+
+                  <div className="w-full space-y-2">
+                    {SUGGESTIONS.map((text, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSend(text)}
+                        className="w-full text-left px-3 py-2 text-xs border border-white/40 dark:border-zinc-800/50 hover:border-primary/45 rounded-xl bg-white/40 dark:bg-zinc-900/30 hover:bg-primary/5 dark:hover:bg-primary/5 transition-all text-muted-foreground hover:text-foreground line-clamp-1 cursor-pointer shadow-sm backdrop-blur-xs"
+                      >
+                        “ {text} ”
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (

@@ -1,0 +1,57 @@
+name: "Publish Release"
+
+on:
+  push:
+    tags:
+      - "v*" # Triggers when you push a version tag (e.g., v0.1.0)
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions UI
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-22.04, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 1. Setup Bun environment
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # 2. Setup Rust compiler
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Build for both Intel and Apple Silicon Macs
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      # 3. Install Linux system dependencies (Runs on Linux runner only)
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      # 4. Install frontend node modules
+      - name: Install frontend dependencies
+        run: bun install
+
+      # 5. Build and Publish using Tauri Action
+      - name: Build and Upload Assets
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__ # Automatically extracts version from tauri.conf.json
+          releaseName: "HeyChat v__VERSION__"
+          releaseBody: "Automated release of HeyChat v__VERSION__"
+          releaseDraft: true
+          prerelease: true
